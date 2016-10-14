@@ -1,0 +1,24 @@
+# Here is your stack preview
+# You can make advanced changes like modifying your VM,
+# installing packages, and running shell commands.
+
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    memsql_1:
+      instance_type: m4.2xlarge
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        # :
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y
+        #Single memsql installation
+        wget http://download.memsql.com/memsql-ops-5.1.0/memsql-ops-5.1.0.tar.gz
+        tar -xzvf memsql-ops-5.1.0.tar.gz
+        cd memsql-ops-5.1.0
+        yes| ./install.sh
