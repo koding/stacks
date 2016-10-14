@@ -1,0 +1,82 @@
+# Here is your stack preview
+# You can make advanced changes like modifying your VM,
+# installing packages, and running shell commands.
+
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    # this is the name of your VM
+    wordpress:
+    #gfgfg
+      # select your instance_type here: eg. c3.xlarge
+      instance_type: t2.medium
+      # select your ami (optional) eg. ami-xxxxx (it should be based on ubuntu 14.04)
+      ami: ''
+      # we will tag the instance here so you can identify it when you login to your AWS console
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      # on user_data section we will write bash and configure our VM
+      user_data: |-
+        # user_data Script:
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        #Adding new source
+        #apt-key adv --keyserver pgp.mit.edu --recv-keys 5072E1F5
+        DISTRO=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+        CODENAME=$(lsb_release -cs)
+        #Updating packages
+        apt-get update -y
+        #Installing Packages
+        apt-get install -y wordpress mysql-server apache2 php5-gd libssh2-php
+        #Writing conf file for apache2
+        echo "        Alias /wp-site /usr/share/wordpress" >> /etc/apache2/sites-available/wordpress.conf
+        echo "        <Directory /usr/share/wordpress>" >> /etc/apache2/sites-available/wordpress.conf
+        echo "            Options FollowSymLinks" >> /etc/apache2/sites-available/wordpress.conf
+        echo "            AllowOverride Limit Options FileInfo" >> /etc/apache2/sites-available/wordpress.conf
+        echo "            DirectoryIndex index.php" >> /etc/apache2/sites-available/wordpress.conf
+        echo "            Order allow,deny" >> /etc/apache2/sites-available/wordpress.conf
+        echo "            Allow from all" >> /etc/apache2/sites-available/wordpress.conf
+        echo "        </Directory>" >> /etc/apache2/sites-available/wordpress.conf
+        echo "        <Directory /usr/share/wordpress/wp-content>" >> /etc/apache2/sites-available/wordpress.conf
+        echo "            Options FollowSymLinks" >> /etc/apache2/sites-available/wordpress.conf
+        echo "            Order allow,deny" >> /etc/apache2/sites-available/wordpress.conf
+        echo "            Allow from all" >> /etc/apache2/sites-available/wordpress.conf
+        echo "        </Directory>" >> /etc/apache2/sites-available/wordpress.conf
+        #Enabling the new site
+        a2ensite wordpress
+        #Restarting the apache service
+        service apache2 restart
+        #Writing  the file to connect WP to the DB
+        echo "<?php" >> /etc/wordpress/config-localhost.php
+        echo "define('DB_NAME', 'wordpress');" >> /etc/wordpress/config-localhost.php
+        echo "define('DB_USER', 'wordpress');" >> /etc/wordpress/config-localhost.php
+        #Password definition
+        echo "define('DB_PASSWORD', 'passwone');" >> /etc/wordpress/config-localhost.php
+        echo "define('DB_HOST', 'localhost');" >> /etc/wordpress/config-localhost.php
+        echo "define('WP_CONTENT_DIR', '/usr/share/wordpress/wp-content');" >> /etc/wordpress/config-localhost.php
+        echo "?>" >> /etc/wordpress/config-localhost.php
+        #Writing the file to create the DB
+        echo "CREATE DATABASE wordpress;" >> wordpress.sql
+        echo "GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,ALTER" >> wordpress.sql
+        echo "ON wordpress.*" >> wordpress.sql
+        echo "TO wordpress@localhost" >> wordpress.sql
+        echo "IDENTIFIED BY 'passwone';" >> wordpress.sql
+        echo "FLUSH PRIVILEGES;" >> wordpress.sql
+        #Running script to create the DB
+        cat wordpress.sql | sudo mysql --defaults-extra-file=/etc/mysql/debian.cnf
+        
+        IPVAR=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+        cp -p /etc/wordpress/config-localhost.php /etc/wordpress/config-$IPVAR.php
+        
+        echo "========================================================"
+        echo " Access the configuration console here:"
+        echo " http://$IPVAR/wp-site/wp-admin/install.php"
+        echo "========================================================"
+        #-----
+        
+  aws_eip:
+    wp-eip:
+      instance: "${aws_instance.wordpress.id}"
