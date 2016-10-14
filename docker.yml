@@ -1,0 +1,31 @@
+# Here is your stack preview
+# You can make advanced changes like modifying your VM,
+# installing packages, and running shell commands.
+
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    docker:
+      instance_type: m4.2xlarge
+      ami: ''
+      root_block_device:
+        volume_size: 50
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        export DEBIAN_FRONTEND=noninteractive
+        #setting the new source
+        
+        #Updating packages
+        apt-get update -y
+        #Install Docker engine
+        sudo apt-get install apt-transport-https ca-certificates
+        sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+        echo 'deb https://apt.dockerproject.org/repo ubuntu-trusty main' > /etc/apt/sources.list.d/docker.list
+        sudo apt-get update
+        sudo apt-get purge -y lxc-docker
+        sudo apt-get install -y linux-image-extra-$(uname -r)
+        sudo apt-get install -y --force-yes docker-engine
