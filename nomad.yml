@@ -1,0 +1,355 @@
+# Here is your stack preview
+# You can make advanced changes like modifying your VM,
+# installing packages, and running shell commands.
+
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    r_a_server_a:
+      instance_type: m4.xlarge
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        # :
+        apt-get update
+        apt-get install -y unzip
+        #Get Nomad
+        wget -O /home/${var.koding_user_username}/nomad_0.4.1_linux_amd64.zip https://releases.hashicorp.com/nomad/0.4.1/nomad_0.4.1_linux_amd64.zip
+        
+        #Install and set up Nomad
+        unzip /home/${var.koding_user_username}/nomad_0.4.1_linux_amd64.zip
+        chmod +x /nomad
+        mv /nomad /usr/bin/nomad
+        mkdir -p /etc/nomad.d
+        chmod a+w /etc/nomad.d
+        mkdir -p /opt/nomad/data
+        mkdir -p /var/log/nomad
+        chmod a+w /var/log/nomad
+        
+        
+        #Set up Nomad.conf
+        #echo 'region = "A"' >> /home/${var.koding_user_username}/nomad.conf
+        #echo 'data_dir = "/opt/nomad/data"' >> /home/${var.koding_user_username}/nomad.conf
+        #echo 'bind_addr = "0.0.0.0"' >>/home/${var.koding_user_username}/nomad.conf
+        #IPVAR1=`ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'`
+        #echo 'advertise {' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    http = "$IPVAR1:4646"' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    rpc = "$IPVAR1:4647"' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    serf = "$IPVAR1:4648"' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '}' >>/home/${var.koding_user_username}/nomad.conf
+        #echo 'enable_debug = true' >>/home/${var.koding_user_username}/nomad.conf
+        #echo 'server {' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    enabled = true' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    bootstrap_expect = 3' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '}' >>/home/${var.koding_user_username}/nomad.conf
+        
+        IPVAR1=`ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'`
+        cat <<EOT>> /home/${var.koding_user_username}/nomad.conf
+        name = "raserver1"
+        region = "us-west"
+        datacenter = "dc1"
+        data_dir = "/opt/nomad/data"
+        bind_addr = "0.0.0.0"
+        advertise {
+            http = "$IPVAR1:4646"
+            rpc = "$IPVAR1:4647"
+            serf = "$IPVAR1:4648"
+        }
+        enable_debug = true
+        server {
+          enabled = true
+          bootstrap_expect = 3
+        }
+        EOT
+        cp /home/${var.koding_user_username}/nomad.conf /etc/nomad.d/nomad.conf
+        
+        #Download Consul
+        wget -O /home/${var.koding_user_username}/consul_0.7.0_linux_amd64.zip https://releases.hashicorp.com/consul/0.7.0/consul_0.7.0_linux_amd64.zip
+        
+        #Install and configure consul
+        unzip /home/${var.koding_user_username}/consul_0.7.0_linux_amd64.zip
+        chmod +x /consul
+        mv /consul /usr/bin/consul
+        mkdir -p /etc/consul.d
+        chmod a+w /etc/consul.d
+        mkdir -p /opt/consul/data
+        mkdir -p /var/log/consul
+        chmod a+w /var/log/consul
+        
+        cat <<EOT >> /etc/consul.d/consul.json
+        {
+          "data_dir": "/opt/consul/data",
+          "log_level": "DEBUG",
+          "node_name": "master1",
+          "server": true,
+          "start_join" : ["$IPVAR1", "${aws_instance.r_a_server_b.private_ip}", "${aws_instance.r_a_server_c.private_ip}"],
+          "retry_join" : ["$IPVAR1", "${aws_instance.r_a_server_b.private_ip}", "${aws_instance.r_a_server_c.private_ip}"],
+          "bootstrap_expect": 3,
+          "retry_interval" : "15s"
+        }
+        EOT
+        
+        nohup consul agent -config-file /etc/consul.d/consul.json &>consul.log  &
+        nohup nomad agent -config /etc/nomad.d/nomad.conf &>nomad.log  &
+    r_a_server_b:
+      instance_type: m4.xlarge
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        # :
+        apt-get update
+        apt-get install -y unzip
+        #Get Nomad
+        wget -O /home/${var.koding_user_username}/nomad_0.4.1_linux_amd64.zip https://releases.hashicorp.com/nomad/0.4.1/nomad_0.4.1_linux_amd64.zip
+        
+        #Install and set up Nomad
+        unzip /home/${var.koding_user_username}/nomad_0.4.1_linux_amd64.zip
+        chmod +x /nomad
+        mv /nomad /usr/bin/nomad
+        mkdir -p /etc/nomad.d
+        chmod a+w /etc/nomad.d
+        mkdir -p /opt/nomad/data
+        mkdir -p /var/log/nomad
+        chmod a+w /var/log/nomad
+        
+        
+        #Set up Nomad.conf
+        #echo 'region = "A"' >> /home/${var.koding_user_username}/nomad.conf
+        #echo 'data_dir = "/opt/nomad/data"' >> /home/${var.koding_user_username}/nomad.conf
+        #echo 'bind_addr = "0.0.0.0"' >>/home/${var.koding_user_username}/nomad.conf
+        #IPVAR1=`ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'`
+        #echo 'advertise {' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    http = "$IPVAR1:4646"' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    rpc = "$IPVAR1:4647"' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    serf = "$IPVAR1:4648"' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '}' >>/home/${var.koding_user_username}/nomad.conf
+        #echo 'enable_debug = true' >>/home/${var.koding_user_username}/nomad.conf
+        #echo 'server {' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    enabled = true' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    bootstrap_expect = 3' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '}'/home/${var.koding_user_username}/nomad.conf
+        #cp /home/${var.koding_user_username}/nomad.conf /etc/nomad.d/nomad.conf
+        
+        IPVAR1=`ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'`
+        cat <<EOT>> /home/${var.koding_user_username}/nomad.conf
+        name = "raserver2"
+        region = "us-west"
+        datacenter = "dc1"
+        data_dir = "/opt/nomad/data"
+        bind_addr = "0.0.0.0"
+        advertise {
+            http = "$IPVAR1:4646"
+            rpc = "$IPVAR1:4647"
+            serf = "$IPVAR1:4648"
+        }
+        enable_debug = true
+        server {
+          enabled = true
+          bootstrap_expect = 3
+        }
+        EOT
+        cp /home/${var.koding_user_username}/nomad.conf /etc/nomad.d/nomad.conf
+        
+        #Download Consul
+        wget -O /home/${var.koding_user_username}/consul_0.7.0_linux_amd64.zip https://releases.hashicorp.com/consul/0.7.0/consul_0.7.0_linux_amd64.zip
+        
+        #Install and configure consul
+        unzip /home/${var.koding_user_username}/consul_0.7.0_linux_amd64.zip
+        chmod +x /consul
+        mv /consul /usr/bin/consul
+        mkdir -p /etc/consul.d
+        chmod a+w /etc/consul.d
+        mkdir -p /opt/consul/data
+        mkdir -p /var/log/consul
+        chmod a+w /var/log/consul
+        
+        cat <<EOT >> /etc/consul.d/consul.json
+        {
+          "data_dir": "/opt/consul/data",
+          "log_level": "DEBUG",
+          "node_name": "master2",
+          "server": true,
+          "bootstrap_expect" : 3
+        }
+        EOT
+        
+        nohup consul agent -config-file /etc/consul.d/consul.json &>consul.log  &
+        nohup nomad agent -config /etc/nomad.d/nomad.conf &>nomad.log  &
+    r_a_server_c:
+      instance_type: m4.xlarge
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        # :
+        apt-get update
+        apt-get install -y unzip
+        #Get Nomad
+        wget -O /home/${var.koding_user_username}/nomad_0.4.1_linux_amd64.zip https://releases.hashicorp.com/nomad/0.4.1/nomad_0.4.1_linux_amd64.zip
+        
+        #Install and set up Nomad
+        unzip /home/${var.koding_user_username}/nomad_0.4.1_linux_amd64.zip
+        chmod +x /nomad
+        mv /nomad /usr/bin/nomad
+        mkdir -p /etc/nomad.d
+        chmod a+w /etc/nomad.d
+        mkdir -p /opt/nomad/data
+        mkdir -p /var/log/nomad
+        chmod a+w /var/log/nomad
+        
+        
+        #Set up Nomad.conf
+        #echo 'region = "A"' >> /home/${var.koding_user_username}/nomad.conf
+        #echo 'data_dir = "/opt/nomad/data"' >> /home/${var.koding_user_username}/nomad.conf
+        #echo 'bind_addr = "0.0.0.0"' >>/home/${var.koding_user_username}/nomad.conf
+        #IPVAR1=`ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'`
+        #echo 'advertise {' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    http = "$IPVAR1:4646"' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    rpc = "$IPVAR1:4647"' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    serf = "$IPVAR1:4648"' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '}' >>/home/${var.koding_user_username}/nomad.conf
+        #echo 'enable_debug = true' >>/home/${var.koding_user_username}/nomad.conf
+        #echo 'server {' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    enabled = true' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    bootstrap_expect = 3' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '}' >>/home/${var.koding_user_username}/nomad.conf
+        
+        IPVAR1=`ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'`
+        cat <<EOT>> /home/${var.koding_user_username}/nomad.conf
+        name = "raserver3"
+        region = "us-west"
+        datacenter = "dc1"
+        data_dir = "/opt/nomad/data"
+        bind_addr = "0.0.0.0"
+        advertise {
+            http = "$IPVAR1:4646"
+            rpc = "$IPVAR1:4647"
+            serf = "$IPVAR1:4648"
+        }
+        enable_debug = true
+        server {
+          enabled = true
+          bootstrap_expect = 3
+        }
+        EOT
+        cp /home/${var.koding_user_username}/nomad.conf /etc/nomad.d/nomad.conf
+        
+        #Download Consul
+        wget -O /home/${var.koding_user_username}/consul_0.7.0_linux_amd64.zip https://releases.hashicorp.com/consul/0.7.0/consul_0.7.0_linux_amd64.zip
+        
+        #Install and configure consul
+        unzip /home/${var.koding_user_username}/consul_0.7.0_linux_amd64.zip
+        chmod +x /consul
+        mv /consul /usr/bin/consul
+        mkdir -p /etc/consul.d
+        chmod a+w /etc/consul.d
+        mkdir -p /opt/consul/data
+        mkdir -p /var/log/consul
+        chmod a+w /var/log/consul
+        
+        cat <<EOT >> /etc/consul.d/consul.json
+        {
+          "data_dir": "/opt/consul/data",
+          "log_level": "DEBUG",
+          "node_name": "master3",
+          "server": true,
+          "bootstrap_expect" : 3
+        }
+        EOT
+        
+        nohup consul agent -config-file /etc/consul.d/consul.json &>consul.log  &
+        nohup nomad agent -config /etc/nomad.d/nomad.conf &>nomad.log  &
+    r_a_dc1_client:
+      instance_type: m4.xlarge
+      count : 3
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        # :
+        apt-get update
+        apt-get install -y unzip
+        #Get Nomad
+        wget -O /home/${var.koding_user_username}/nomad_0.4.1_linux_amd64.zip https://releases.hashicorp.com/nomad/0.4.1/nomad_0.4.1_linux_amd64.zip
+        
+        #Install and set up Nomad
+        unzip /home/${var.koding_user_username}/nomad_0.4.1_linux_amd64.zip
+        chmod +x /nomad
+        mv /nomad /usr/bin/nomad
+        mkdir -p /etc/nomad.d
+        chmod a+w /etc/nomad.d
+        mkdir -p /opt/nomad/data
+        mkdir -p /var/log/nomad
+        chmod a+w /var/log/nomad
+        
+        
+        #Set up Nomad.conf
+        #echo 'region = "A"' >> /home/${var.koding_user_username}/nomad.conf
+        #echo 'data_dir = "/opt/nomad/data"' >> /home/${var.koding_user_username}/nomad.conf
+        #echo 'bind_addr = "0.0.0.0"' >>/home/${var.koding_user_username}/nomad.conf
+        #IPVAR1=`ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'`
+        #echo 'advertise {' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    http = "$IPVAR1:4646"' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    rpc = "$IPVAR1:4647"' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    serf = "$IPVAR1:4648"' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '}' >>/home/${var.koding_user_username}/nomad.conf
+        #echo 'enable_debug = true' >>/home/${var.koding_user_username}/nomad.conf
+        #echo 'server {' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    enabled = true' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '    bootstrap_expect = 3' >>/home/${var.koding_user_username}/nomad.conf
+        #echo '}' >>/home/${var.koding_user_username}/nomad.conf
+        
+        IPVAR1=`ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'`
+        cat <<EOT>> /home/${var.koding_user_username}/nomad.conf
+        name = "radc1client${count.index}"
+        region = "us-west"
+        datacenter = "dc1"
+        data_dir = "/opt/nomad/data"
+        enable_debug = true
+        client {
+          enabled = true
+          servers=["${aws_instance.r_a_server_a.private_ip}:4647", "${aws_instance.r_a_server_b.private_ip}:4647", "${aws_instance.r_a_server_c.private_ip}:4647"]
+        }
+        EOT
+        cp /home/${var.koding_user_username}/nomad.conf /etc/nomad.d/nomad.conf
+        
+        #Download Consul
+        wget -O /home/${var.koding_user_username}/consul_0.7.0_linux_amd64.zip https://releases.hashicorp.com/consul/0.7.0/consul_0.7.0_linux_amd64.zip
+        
+        #Install and configure consul
+        unzip /home/${var.koding_user_username}/consul_0.7.0_linux_amd64.zip
+        chmod +x /consul
+        mv /consul /usr/bin/consul
+        mkdir -p /etc/consul.d
+        chmod a+w /etc/consul.d
+        mkdir -p /opt/consul/data
+        mkdir -p /var/log/consul
+        chmod a+w /var/log/consul
+        
+        cat <<EOT >> /etc/consul.d/consul.json
+        {
+          "data_dir": "/opt/consul/data",
+          "log_level": "DEBUG",
+          "start_join" : ["${aws_instance.r_a_server_a.private_ip}"],
+          "retry_join" : ["${aws_instance.r_a_server_a.private_ip}"],
+          "server": false,
+          "retry_interval" : "15s"
+        }
+        EOT
+        
+        #Install Docker engine
+        sudo apt-get install apt-transport-https ca-certificates
+        sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+        echo 'deb https://apt.dockerproject.org/repo ubuntu-trusty main' > /etc/apt/sources.list.d/docker.list
+        sudo apt-get update
+        sudo apt-get purge -y lxc-docker
+        sudo apt-get install -y linux-image-extra-$(uname -r)
+        sudo apt-get install -y --force-yes docker-engine
+        
+        nohup consul agent -config-file /etc/consul.d/consul.json &>consul.log  &
+        nohup nomad agent -config /etc/nomad.d/nomad.conf &>nomad.log  &
