@@ -1,0 +1,76 @@
+# Here is your stack preview
+# You can make advanced changes like modifying your VM,
+# installing packages, and running shell commands.
+
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    imply_qs:
+      instance_type: m4.2xlarge
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        #adding new source for packages
+        DISTRO=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+        CODENAME=$(lsb_release -cs)
+        curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | sudo apt-key add -
+        #NodeJS version 6.x
+        echo "deb https://deb.nodesource.com/node_6.x $CODENAME main" > /etc/apt/sources.list.d/nodesource.list
+        echo "deb-src https://deb.nodesource.com/node_6.x $CODENAME main" >> /etc/apt/sources.list.d/nodesource.list
+        #Java Rep
+        add-apt-repository ppa:openjdk-r/ppa
+        #Updating packages
+        apt-get update -y
+        #Installing Java
+        apt-get install -y openjdk-8-jdk
+        #Installing NodeJS 6.x
+        apt-get install -y nodejs
+        #Getting user name
+        export KODING_USER=${var.koding_user_username}
+        #Downloading & Extracting Imply
+        curl -O https://static.imply.io/release/imply-1.3.0.tar.gz
+        tar -xzf imply-1.3.0.tar.gz -C /home/$KODING_USER/
+        #creating .sh to start service
+        echo "nohup bin/supervise -c conf/supervise/quickstart.conf & > /dev/null" >>/home/$KODING_USER/imply-1.3.0/start_all.sh
+        #Creating .sh to stop service
+        echo "PID2K=\$(ps ax | grep supervise | grep -v grep | awk '{print \$1}')" >>/home/$KODING_USER/imply-1.3.0/stop_all.sh
+        echo "if [ -z \"\$PID2K\" ]; then" >>/home/$KODING_USER/imply-1.3.0/stop_all.sh
+        echo "  echo "No Supervise to stop"" >>/home/$KODING_USER/imply-1.3.0/stop_all.sh
+        echo "  exit 1" >>/home/$KODING_USER/imply-1.3.0/stop_all.sh
+        echo "else" >>/home/$KODING_USER/imply-1.3.0/stop_all.sh
+        echo "  sudo kill \$PID2K" >>/home/$KODING_USER/imply-1.3.0/stop_all.sh
+        echo "fi" >>/home/$KODING_USER/imply-1.3.0/stop_all.sh
+        echo "echo "==SERVICE STOPPED=="" >>/home/$KODING_USER/imply-1.3.0/stop_all.sh
+        #Changing owner Imply folder
+        chown -R $KODING_USER:$KODING_USER /home/$KODING_USER/imply-1.3.0
+        chmod +x /home/$KODING_USER/imply-1.3.0/st*_all.sh
+        #Starting service in background
+        su - $KODING_USER -c "cd /home/$KODING_USER/imply-1.3.0/; nohup bin/supervise -c conf/supervise/quickstart.conf &"
+        sleep 5
+        #Loading Sample Data
+        su - $KODING_USER -c "cd /home/$KODING_USER/imply-1.3.0/; bin/post-index-task --file quickstart/wikiticker-index.json"
+        ##Getting IP
+        IPADD=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+        ##MESSAGES
+        echo "=============================================================================="
+        echo "Check http://$IPADD:8081/"
+        echo "      http://$IPADD:9095/"
+        echo "=============================================================================="
+        echo "To manage the service please use the following commands:"
+        echo "Go to the directory: cd /home/$KODING_USER/imply-1.3.0/"
+        echo "  -  to START run: ./start_all.sh"
+        echo "  -  to STOP run: ./stop_all.sh"
+        echo "=============================================================================="
+        #Welcome message
+        echo "echo "'=============================================================================='"" >> /home/$KODING_USER/.bashrc
+        echo "echo "To manage the service please use the following commands:"" >> /home/$KODING_USER/.bashrc
+        echo "echo "Go to the directory: cd /home/$KODING_USER/imply-1.3.0/"" >> /home/$KODING_USER/.bashrc
+        echo "echo "  -  to START run: ./start_all.sh"" >> /home/$KODING_USER/.bashrc
+        echo "echo "  -  to STOP run: ./stop_all.sh"" >> /home/$KODING_USER/.bashrc
+        echo "echo "'=============================================================================='"" >> /home/$KODING_USER/.bashrc
