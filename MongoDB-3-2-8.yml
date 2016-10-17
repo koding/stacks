@@ -1,0 +1,26 @@
+# Here is your stack preview
+# You can make advanced changes like modifying your VM,
+# installing packages, and running shell commands.
+
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    mongodb_latest:
+      instance_type: t2.medium
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        #setting new key and installation source
+        apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv EA312927
+        echo "deb http://repo.mongodb.org/apt/ubuntu trusty/mongodb-org/3.2 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-3.2.list 
+        #Updating packages 
+        apt-get update -y
+        #Installing MongoDB 3.2.8
+        apt-get -y install mongodb-org
+       
