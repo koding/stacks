@@ -1,0 +1,89 @@
+# Here is your stack preview
+# You can make advanced changes like modifying your VM,
+# installing packages, and running shell commands.
+
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    replica_1:
+      instance_type: m4.large
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        # :
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y
+        
+        #Install Mongo
+        apt-get -y install mongodb
+        
+        #Set the replica set name
+        echo "replSet = rs0" >> /etc/mongodb.conf
+        
+        #Fetch our private IP
+        export PRIVATE_IP=`ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'`
+        
+        #Replace our localhost IP with the private IP in our mongo configuration
+        sed -i "s/127.0.0.1/$PRIVATE_IP/" /etc/mongodb.conf
+        
+        #Open the outside port in the mongo configuration
+        sed -i 's/#port/port/' /etc/mongodb.conf
+        
+        #Restart Mongo
+        service mongodb restart
+        
+        #Rest for a while while Mongo rebuilds files and indices for the replica set
+        echo "Sleeping 5 minutes..."
+        sleep 300
+        
+        #Initiate our replica set
+        mongo `echo $PRIVATE_IP` --eval "rs.initiate()"
+        
+        #Wait for initiation to complete
+        echo "Sleeping 2 minutes..."
+        sleep 120
+        
+        #Add our 2nd instance to the replica set
+        mongo `echo $PRIVATE_IP` --eval "rs.add('${aws_instance.replica_2.private_ip}')"
+        
+        #Add our 3rd instance to the replica set
+        mongo `echo $PRIVATE_IP` --eval "rs.add('${aws_instance.replica_3.private_ip}')"
+        
+    replica_2:
+      instance_type: m4.large
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        # :
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y
+        apt-get -y install mongodb
+        echo "replSet = rs0" >> /etc/mongodb.conf
+        
+        #Fetching Private IP
+        export PRIVATE_IP=`ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'`
+        sed -i "s/127.0.0.1/$PRIVATE_IP/" /etc/mongodb.conf
+        sed -i 's/#port/port/' /etc/mongodb.conf
+        service mongodb restart
+    replica_3:
+      instance_type: m4.large
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        # :
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y
+        apt-get -y install mongodb
+        echo "replSet = rs0" >> /etc/mongodb.conf
+        
+        #Fetching Private IP
+        export PRIVATE_IP=`ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'`
+        sed -i "s/127.0.0.1/$PRIVATE_IP/" /etc/mongodb.conf
+        sed -i 's/#port/port/' /etc/mongodb.conf
+        service mongodb restart

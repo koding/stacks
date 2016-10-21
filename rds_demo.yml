@@ -1,0 +1,50 @@
+# Here is your stack preview
+# You can make advanced changes like modifying your VM,
+# installing packages, and running shell commands.
+
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    api_1:
+      instance_type: t2.nano
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        # :
+        export DEBIAN_FRONTEND=noninteractive
+        apt-get update -y
+        apt-get -y install python-dev python-pip git-core python-mysqldb
+
+        export USER_HOME=/home/${var.koding_user_username}
+        su ${var.koding_user_username} -c "git clone https://github.com/sibblegp/koding_rds_demo.git $USER_HOME/koding_rds_demo"
+        
+        cd $USER_HOME/koding_rds_demo/config
+        sed -i "s/localhost/${aws_db_instance.db_1.endpoint}/" settings.py
+        cd $USER_HOME/koding_rds_demo
+        pip install -r requirements.txt
+        python reset_db.py
+        
+        pip install gunicorn
+        gunicorn api:APP -b 0.0.0.0 -D
+        sleep 5
+        curl -XPOST -H "Content-Type: application/json" -d '{"word":"hello"}' http://127.0.0.1:8000/1.0/words
+        curl -XPOST -H "Content-Type: application/json" -d '{"word":"world"}' http://127.0.0.1:8000/1.0/words
+        curl http://127.0.0.1:8000/1.0/words
+        
+  aws_db_instance:
+    db_1:
+      # :
+      allocated_storage: "10"
+      engine: "mysql"
+      instance_class: "db.t1.micro"
+      name: "words"
+      username: "words"
+      password: ${var.custom_password}
+      publicly_accessible: True
+      
+      #Replace this with your own properly created subnet group
+      db_subnet_group_name: "--PUT YOUR SUBNET GROUP IN HERE--"
