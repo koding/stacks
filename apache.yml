@@ -9,7 +9,7 @@ provider:
 resource:
   aws_instance:
     # this is the name of your VM
-    apache-2-4-23:
+    apache:
       # select your instance_type here: eg. c3.xlarge
       instance_type: t2.medium
       # select your ami (optional) eg. ami-xxxxx (it should be based on ubuntu 14.04)
@@ -22,10 +22,6 @@ resource:
         # user_data Script:
         set -e
         export DEBIAN_FRONTEND=noninteractive
-        #Adding new source
-        #apt-key adv --keyserver pgp.mit.edu --recv-keys 5072E1F5
-        DISTRO=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
-        CODENAME=$(lsb_release -cs)
         #Getting user name and IP
         export KODING_USER=${var.koding_user_username}
         IPVAR=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
