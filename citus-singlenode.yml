@@ -22,7 +22,7 @@ resource:
         # user_data Script:
         export DEBIAN_FRONTEND=noninteractive
         #Adding new source
-        curl https://install.citusdata.com/community/deb.sh | sudo bash
+        curl https://install.citusdata.com/community/deb.sh | bash
         #Updating packages
         apt-get update -y
         #Installing Packages
