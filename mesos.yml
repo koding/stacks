@@ -28,7 +28,6 @@ resource:
         #Updating packages
         apt-get update -y
         apt-get install -y openjdk-8-jdk
-
         #installing Mesosphere
         sudo apt-get install -y mesosphere
         #Getting the IP add
@@ -61,10 +60,6 @@ resource:
         start marathon
         
         apt-get install -y nginx
-        rm /etc/nginx/sites-enabled/default
-        echo "server { listen 80; server_name ${var.koding_user_username}.mesosphere.live; location / { proxy_pass http://$IPVAR1:8080; }}" >/etc/nginx/sites-enabled/marathon
-        echo "server { listen 80; server_name ${var.koding_user_username}-mesos.mesosphere.live; location / { proxy_pass http://$IPVAR1:5050; }}" >/etc/nginx/sites-enabled/mesos
-        service nginx restart
         
         PUBLIC_IP=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
         
@@ -98,10 +93,17 @@ resource:
         EOT
         mesos-dns -config=/etc/mesos-dns-config.json & 
         sed -i "s/nameserver 10.0.0.2/nameserver $IPVAR1\nnameserver 10.0.0.2/" /etc/resolv.conf
-        echo "You can access the Marathon Web UI at http://${var.koding_user_username}.mesosphere.live"
-        echo ""
-        echo "You can access the Mesos Web UI at http://${var.koding_user_username}-mesos.mesosphere.live"
-        
+        echo " "
+        echo "=========================================================================="
+        echo "You can manage and monitor Mesosphere with the web UI on port 5050"
+        echo "Make sure that port 5050 is open in your firewall or security group."
+        echo "You can access the Web UI at http://$PUBLIC_IP:5050"
+        echo " "
+        echo "You can manage and Marathon with the web UI on port 8080"
+        echo "Make sure that port 8080 is open in your firewall or security group."
+        echo "You can access the Web UI at http://$PUBLIC_IP:8080"
+        echo "=========================================================================="
+        echo " "
     slave:
       instance_type: m4.2xlarge
       ami: ''
@@ -154,4 +156,4 @@ resource:
         sed -i "s/nameserver 10.0.0.2/nameserver ${aws_instance.master.private_ip}\nnameserver 10.0.0.2/" /etc/resolv.conf
         
         start mesos-slave
-     
+        
