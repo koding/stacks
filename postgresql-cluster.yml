@@ -133,3 +133,8 @@ resource:
         #Time before to start the DB service
         sleep 10
         service postgresql start
+        
+  aws_eip:
+    master-eip:
+      instance: '${aws_instance.master.id}'
+      vpc: false
