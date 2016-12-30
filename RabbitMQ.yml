@@ -8,7 +8,7 @@ provider:
     secret_key: '${var.aws_secret_key}'
 resource:
   aws_instance:
-    rabbitmq_3-6-5:
+    rabbitmq:
       instance_type: t2.nano
       ami: ''
       tags:
