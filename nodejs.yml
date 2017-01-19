@@ -24,10 +24,10 @@ resource:
         #Adding new source
         DISTRO=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
         CODENAME=$(lsb_release -cs)
-        #VERSION can be: "node_4.x"; "node_5.x"; "node_6.x" ; "node_7.x"
+        #Variable VERSION can be: "node_4.x"; "node_5.x"; "node_6.x" ; "node_7.x"
         VERSION="node_6.x"
-        curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | sudo apt-key add -
-        #NodeJS version
+        curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
+        #Adding NodeJS Source repo
         echo "deb https://deb.nodesource.com/$VERSION $CODENAME main" > /etc/apt/sources.list.d/nodesource.list
         echo "deb-src https://deb.nodesource.com/$VERSION $CODENAME main" >> /etc/apt/sources.list.d/nodesource.list
         #Updating packages
@@ -35,4 +35,3 @@ resource:
         #Installing NodeJS
         apt-get install -y nodejs
         #--
-        #---
