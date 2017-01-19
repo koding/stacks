@@ -18,20 +18,17 @@ resource:
         Name: '${var.koding_user_username}-${var.koding_group_slug}'
       # on user_data section we will write bash and configure our VM
       user_data: |-
-        # user_data Script:
         set -e
         export DEBIAN_FRONTEND=noninteractive
-        #Adding new source
         DISTRO=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
         CODENAME=$(lsb_release -cs)
-        #Variable VERSION can be: "node_4.x"; "node_5.x"; "node_6.x" ; "node_7.x"
         VERSION="node_6.x"
+        
         curl -s https://deb.nodesource.com/gpgkey/nodesource.gpg.key | apt-key add -
-        #Adding NodeJS Source repo
+        
         echo "deb https://deb.nodesource.com/$VERSION $CODENAME main" > /etc/apt/sources.list.d/nodesource.list
         echo "deb-src https://deb.nodesource.com/$VERSION $CODENAME main" >> /etc/apt/sources.list.d/nodesource.list
-        #Updating packages
+        
         apt-get update -y
-        #Installing NodeJS
         apt-get install -y nodejs
         #--
