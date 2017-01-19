@@ -1,6 +1,5 @@
-# Here is your stack preview
-# You can make advanced changes like modifying your VM,
-# installing packages, and running shell commands.
+# This stack script installs nodeJS.
+# To install different versions change the value of the variable VERSION.
 
 provider:
   aws:
