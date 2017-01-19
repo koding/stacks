@@ -1,0 +1,63 @@
+# Here is your stack preview
+# You can make advanced changes like modifying your VM,
+# installing packages, and running shell commands.
+
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    kafka_server:
+      instance_type: t2.medium
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        # user_data script
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        #Updating packages
+        apt-get update -y
+        #Installing java
+        apt-get install -y openjdk-7-jdk
+        useradd kafka -m
+        #Creating script to install with kafka user
+        echo "#Downloading kafka" >>/home/kafka/exec.sh
+        echo "wget -P /home/kafka/ http://www-us.apache.org/dist/kafka/0.10.0.0/kafka_2.11-0.10.0.0.tgz" >>/home/kafka/exec.sh
+        echo "#extracting Files" >>/home/kafka/exec.sh
+        echo "tar -xzf /home/kafka/kafka_2.11-0.10.0.0.tgz -C /home/kafka/" >>/home/kafka/exec.sh
+        echo "/home/kafka/start_service.sh &" >>/home/kafka/exec.sh
+        #Creating .sh to start service with kafka user
+        echo "nohup /home/kafka/kafka_2.11-0.10.0.0/bin/zookeeper-server-start.sh /home/kafka/kafka_2.11-0.10.0.0/config/zookeeper.properties > /home/kafka/zoo.log 2>&1 &" >>/home/kafka/start_service.sh
+        echo "sleep 10" >>/home/kafka/start_service.sh
+        echo "nohup /home/kafka/kafka_2.11-0.10.0.0/bin/kafka-server-start.sh /home/kafka/kafka_2.11-0.10.0.0/config/server.properties > /home/kafka/kafka.log 2>&1 &" >>/home/kafka/start_service.sh
+        echo "sleep 10" >>/home/kafka/start_service.sh
+        echo "sudo su kafka -c /home/kafka/start_service.sh &" >>/home/kafka/start_kafka.sh
+        echo "sleep 10" >>/home/kafka/start_kafka.sh
+        echo "echo "==SERVICE RUNNING=="" >>/home/kafka/start_kafka.sh
+        #Creating .sh to stop service with kafka user
+        echo "PID2K=\$(ps ax | grep kafka | grep java | grep -v grep | awk '{print \$1}')" >>/home/kafka/stop_kafka.sh
+        echo "if [ -z \"\$PID2K\" ]; then" >>/home/kafka/stop_kafka.sh
+        echo "  echo "No zookeeper server to stop"" >>/home/kafka/stop_kafka.sh
+        echo "  exit 1" >>/home/kafka/stop_kafka.sh
+        echo "else" >>/home/kafka/stop_kafka.sh
+        echo "  sudo kill -9 \$PID2K" >>/home/kafka/stop_kafka.sh
+        echo "fi" >>/home/kafka/stop_kafka.sh
+        echo "echo "==SERVICE STOPPED=="" >>/home/kafka/stop_kafka.sh
+        #Changing permissions to kafka
+        chown -R kafka /home/kafka/
+        chmod +x /home/kafka/*.sh
+        #executing script with kafka user
+        su kafka -c "sh /home/kafka/exec.sh"
+        export KODING_USER=${var.koding_user_username}
+        #Messages
+        echo "=========================================================="
+        echo "= To start kafka service use: /home/kafka/start_kafka.sh =" 
+        echo "= To stop kafka service use: /home/kafka/stop_kafka.sh   ="
+        echo "=========================================================="
+        #Welcome Message
+        echo "echo "=========================================================="" >> /home/$KODING_USER/.bashrc
+        echo "echo "= To start kafka service use: /home/kafka/start_kafka.sh ="" >> /home/$KODING_USER/.bashrc
+        echo "echo "= To stop kafka service use: /home/kafka/stop_kafka.sh   ="" >> /home/$KODING_USER/.bashrc
+        echo "echo "=========================================================="" >> /home/$KODING_USER/.bashrc

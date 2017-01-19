@@ -1,0 +1,91 @@
+# Here is your stack preview
+# You can make advanced changes like modifying your VM,
+# installing packages, and running shell commands.
+
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    druid:
+      instance_type: m4.2xlarge
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        #adding new source for packages
+        add-apt-repository ppa:openjdk-r/ppa
+        #Updating packages
+        apt-get update -y
+        #Installing Java
+        apt-get install -y openjdk-8-jdk
+        #Getting user name
+        export KODING_USER=${var.koding_user_username}
+        #Downloading & Extracting Zookeeper
+        curl http://www.gtlib.gatech.edu/pub/apache/zookeeper/zookeeper-3.4.6/zookeeper-3.4.6.tar.gz -o zookeeper-3.4.6.tar.gz
+        tar -xzf zookeeper-3.4.6.tar.gz -C /home/$KODING_USER/
+        #Copying Basic Conf file
+        cp /home/$KODING_USER/zookeeper-3.4.6/conf/zoo_sample.cfg /home/$KODING_USER/zookeeper-3.4.6/conf/zoo.cfg
+        #Downloading & Extracting Druid
+        curl -O http://static.druid.io/artifacts/releases/druid-0.9.1.1-bin.tar.gz
+        tar -xzf druid-0.9.1.1-bin.tar.gz -C /home/$KODING_USER/
+        #Downloading Tranquility
+        curl -O http://static.druid.io/tranquility/releases/tranquility-distribution-0.8.0.tgz
+        tar -xzf tranquility-distribution-0.8.0.tgz -C /home/$KODING_USER/
+        #Downloading MySQL Extension
+        curl -O http://static.druid.io/artifacts/releases/mysql-metadata-storage-0.9.1.1.tar.gz
+        tar -xzf mysql-metadata-storage-0.9.1.1.tar.gz -C /home/$KODING_USER/druid-0.9.1.1/extensions/
+        #Creating script to finish installation
+        echo "cd /home/$KODING_USER/zookeeper-3.4.6" >>/home/$KODING_USER/exec.sh
+        echo "/home/$KODING_USER/zookeeper-3.4.6/bin/zkServer.sh start" >>/home/$KODING_USER/exec.sh
+        echo "sleep  3" >>/home/$KODING_USER/exec.sh
+        echo "cd /home/$KODING_USER/druid-0.9.1.1" >>/home/$KODING_USER/exec.sh
+        echo "bin/init" >>/home/$KODING_USER/exec.sh
+        echo "sleep  3" >>/home/$KODING_USER/exec.sh
+        echo "bin/historical.sh start" >>/home/$KODING_USER/exec.sh
+        echo "sleep  3" >>/home/$KODING_USER/exec.sh
+        echo "bin/broker.sh start" >>/home/$KODING_USER/exec.sh
+        echo "sleep  3" >>/home/$KODING_USER/exec.sh
+        echo "bin/coordinator.sh start" >>/home/$KODING_USER/exec.sh
+        echo "sleep  3" >>/home/$KODING_USER/exec.sh
+        echo "bin/overlord.sh start">>/home/$KODING_USER/exec.sh
+        echo "sleep  3" >>/home/$KODING_USER/exec.sh
+        echo "bin/middleManager.sh start">>/home/$KODING_USER/exec.sh
+        echo "sleep  3" >>/home/$KODING_USER/exec.sh
+        #Changing Ownership of new files
+        chown -R $KODING_USER:$KODING_USER /home/$KODING_USER/
+        #Running final script
+        su $KODING_USER -c "sh /home/$KODING_USER/exec.sh"
+        echo "Service Running"
+        echo "=============================================================================="
+        echo "To manage the service please use the following commands:"
+        echo "For ZooKepper:"
+        echo "    Go to the directory: cd /home/$KODING_USER/zookeeper-3.4.6/"
+        echo "    and run: bin/zkServer.sh start|stop"
+        echo "For Druid services:"
+        echo "    Go to the directory: cd /home/$KODING_USER/druid-0.9.1.1/"
+        echo "Historical:    bin/historical.sh start|stop"
+        echo "Broker:        bin/broker.sh start|stop" 
+        echo "Coordinator:   bin/coordinator.sh start|stop" 
+        echo "Overlord:      bin/overlord.sh start|stop"
+        echo "MiddleManager: bin/middleManager.sh start|stop"
+        echo "=============================================================================="
+        #Welcome message
+        echo "echo "'=============================================================================='"" >> /home/$KODING_USER/.bashrc
+        echo "echo "To manage the service please use the following commands:"" >> /home/$KODING_USER/.bashrc
+        echo "echo "For ZooKepper:"" >> /home/$KODING_USER/.bashrc
+        echo "echo "    Go to the directory: cd /home/$KODING_USER/zookeeper-3.4.6/"" >> /home/$KODING_USER/.bashrc
+        echo "echo "'    and run: bin/zkServer.sh start\|stop'"" >> /home/$KODING_USER/.bashrc
+        echo "echo "For Druid services:"" >> /home/$KODING_USER/.bashrc
+        echo "echo "    Go to the directory: cd /home/$KODING_USER/druid-0.9.1.1/"" >> /home/$KODING_USER/.bashrc
+        echo "echo "'Historical:    bin/historical.sh start\|stop'"" >> /home/$KODING_USER/.bashrc
+        echo "echo "'Broker:        bin/broker.sh start\|stop'"" >> /home/$KODING_USER/.bashrc
+        echo "echo "'Coordinator:   bin/coordinator.sh start\|stop'"" >> /home/$KODING_USER/.bashrc
+        echo "echo "'Overlord:      bin/overlord.sh start\|stop'"" >> /home/$KODING_USER/.bashrc
+        echo "echo "'MiddleManager: bin/middleManager.sh start\|stop'"" >> /home/$KODING_USER/.bashrc
+        echo "echo "'=============================================================================='"" >> /home/$KODING_USER/.bashrc
+        
+        

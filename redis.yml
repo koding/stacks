@@ -1,0 +1,83 @@
+# Here is your stack preview
+# You can make advanced changes like modifying your VM,
+# installing packages, and running shell commands.
+
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    # this is the name of your VM
+    redis:
+      # select your instance_type here: eg. c3.xlarge
+      instance_type: t2.medium
+      # select your ami (optional) eg. ami-xxxxx (it should be based on ubuntu 14.04)
+      ami: ''
+      # we will tag the instance here so you can identify it when you login to your AWS console
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      # on user_data section we will write bash and configure our VM
+      user_data: |-
+        # user_data Script:
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        #Adding new source
+        #apt-key adv --keyserver pgp.mit.edu --recv-keys 5072E1F5
+        DISTRO=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
+        CODENAME=$(lsb_release -cs)
+        VERSION=3.2.6
+        #Getting user name and IP
+        export KODING_USER=${var.koding_user_username}
+        IPVAR=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+        #Updating packages
+        apt-get update -y
+        #Installing Packages
+        apt-get install -y make gcc tcl
+        curl -O http://download.redis.io/releases/redis-$VERSION.tar.gz
+        tar -xzf redis-$VERSION.tar.gz -C /home/$KODING_USER/
+        #creating .sh to start service
+        echo "src/redis-server &" >>/home/$KODING_USER/redis-$VERSION/start_redis.sh
+        echo "sleep 2" >>/home/$KODING_USER/redis-$VERSION/start_redis.sh
+        echo "echo "==SERVICE STARTED=="" >>/home/$KODING_USER/redis-$VERSION/start_redis.sh
+        #Creating .sh to stop service
+        echo "PID2K=\$(ps ax | grep redis-server | grep -v grep | awk '{print \$1}')" >>/home/$KODING_USER/redis-$VERSION/stop_redis.sh
+        echo "if [ -z \"\$PID2K\" ]; then" >>/home/$KODING_USER/redis-$VERSION/stop_redis.sh
+        echo "  echo "No REDIS to stop"" >>/home/$KODING_USER/redis-$VERSION/stop_redis.sh
+        echo "  exit 1" >>/home/$KODING_USER/redis-$VERSION/stop_redis.sh
+        echo "else" >>/home/$KODING_USER/redis-$VERSION/stop_redis.sh
+        echo "  sudo kill \$PID2K" >>/home/$KODING_USER/redis-$VERSION/stop_redis.sh
+        echo "fi" >>/home/$KODING_USER/redis-$VERSION/stop_redis.sh
+        echo "sleep 2" >>/home/$KODING_USER/redis-$VERSION/stop_redis.sh
+        echo "echo "==SERVICE STOPPED=="" >>/home/$KODING_USER/redis-$VERSION/stop_redis.sh
+        #Changing owner Imply folder
+        chown -R $KODING_USER:$KODING_USER /home/$KODING_USER/redis-$VERSION
+        chmod +x /home/$KODING_USER/redis-$VERSION/st*_redis.sh
+        ##MAKE FILES
+        su - $KODING_USER -c "cd /home/$KODING_USER/redis-$VERSION/; make"
+        #Starting service in background
+        su - $KODING_USER -c "cd /home/$KODING_USER/redis-$VERSION/; ./start_redis.sh"
+        ##MESSAGES
+        echo "=============================================================================="
+        echo "To manage the service please use the following commands:"
+        echo "Go to the directory: cd /home/$KODING_USER/redis-$VERSION/"
+        echo "  -  to START run: ./start_redis.sh"
+        echo "  -  to STOP run: ./stop_redis.sh"
+        echo "=============================================================================="
+        echo "To interact with Redis using the built-in client:"
+        echo "Go to the directory: cd /home/$KODING_USER/redis-$VERSION/"
+        echo "  - Run: src/redis-cli"
+        echo "=============================================================================="
+        echo "Server IP: $IPVAR , Service Port: 6379"
+        #Welcome message
+        echo "echo "'=============================================================================='"" >> /home/$KODING_USER/.bashrc
+        echo "echo "To manage the service please use the following commands:"" >> /home/$KODING_USER/.bashrc
+        echo "echo "Go to the directory: cd /home/$KODING_USER/redis-$VERSION/"" >> /home/$KODING_USER/.bashrc
+        echo "echo "  -  to START run: ./start_redis.sh"" >> /home/$KODING_USER/.bashrc
+        echo "echo "  -  to STOP run: ./stop_redis.sh"" >> /home/$KODING_USER/.bashrc
+        echo "echo "'=============================================================================='"" >> /home/$KODING_USER/.bashrc
+        echo "echo "To interact with Redis using the built-in client:"" >> /home/$KODING_USER/.bashrc
+        echo "echo "Go to the directory: cd /home/$KODING_USER/redis-$VERSION/"" >> /home/$KODING_USER/.bashrc
+        echo "echo "  - Run: src/redis-cli"" >> /home/$KODING_USER/.bashrc
+        echo "echo "=============================================================================="" >> /home/$KODING_USER/.bashrc
+        #   

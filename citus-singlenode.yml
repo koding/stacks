@@ -1,0 +1,61 @@
+# Here is your stack preview
+# You can make advanced changes like modifying your VM,
+# installing packages, and running shell commands.
+
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    # this is the name of your VM
+    citus-single:
+      # select your instance_type here: eg. c3.xlarge
+      instance_type: t2.medium
+      # select your ami (optional) eg. ami-xxxxx (it should be based on ubuntu 14.04)
+      ami: ''
+      # we will tag the instance here so you can identify it when you login to your AWS console
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      # on user_data section we will write bash and configure our VM
+      user_data: |-
+        # user_data Script:
+        export DEBIAN_FRONTEND=noninteractive
+        #Adding new source
+        curl https://install.citusdata.com/community/deb.sh | bash
+        #Updating packages
+        apt-get update -y
+        #Installing Packages
+        apt-get -y install postgresql-9.5-citus
+        
+        # include path to postgres binaries
+        echo "export PATH=\$PATH:/usr/lib/postgresql/9.5/bin" >> /var/lib/postgresql/init.sh
+        echo 'echo "export PATH=\$PATH:/usr/lib/postgresql/9.5/bin" >> /var/lib/postgresql/.profile' >> /var/lib/postgresql/init.sh
+        echo "cd ~" >> /var/lib/postgresql/init.sh
+        echo "mkdir -p citus/master citus/worker1 citus/worker2" >> /var/lib/postgresql/init.sh
+        
+        # create three normal postgres instances
+        echo "initdb -D citus/master" >> /var/lib/postgresql/init.sh
+        echo "initdb -D citus/worker1" >> /var/lib/postgresql/init.sh
+        echo "initdb -D citus/worker2" >> /var/lib/postgresql/init.sh
+        echo "sleep 3" >> /var/lib/postgresql/init.sh
+        echo 'echo "localhost 9701" >> citus/master/pg_worker_list.conf' >> /var/lib/postgresql/init.sh
+        echo 'echo "localhost 9702" >> citus/master/pg_worker_list.conf' >> /var/lib/postgresql/init.sh
+        
+        echo 'echo "shared_preload_libraries = 'citus'" >> citus/master/postgresql.conf' >> /var/lib/postgresql/init.sh
+        echo 'echo "shared_preload_libraries = 'citus'" >> citus/worker1/postgresql.conf' >> /var/lib/postgresql/init.sh
+        echo 'echo "shared_preload_libraries = 'citus'" >> citus/worker2/postgresql.conf' >> /var/lib/postgresql/init.sh
+        
+        echo 'pg_ctl -D citus/master -o "-p 9700" -l master_logfile start' >> /var/lib/postgresql/init.sh
+        echo 'pg_ctl -D citus/worker1 -o "-p 9701" -l worker1_logfile start' >> /var/lib/postgresql/init.sh
+        echo 'pg_ctl -D citus/worker2 -o "-p 9702" -l worker2_logfile start' >> /var/lib/postgresql/init.sh
+        echo "sleep 3" >> /var/lib/postgresql/init.sh
+        echo 'psql -p 9700 -c "CREATE EXTENSION citus;"' >> /var/lib/postgresql/init.sh
+        echo 'psql -p 9701 -c "CREATE EXTENSION citus;"' >> /var/lib/postgresql/init.sh
+        echo 'psql -p 9702 -c "CREATE EXTENSION citus;"' >> /var/lib/postgresql/init.sh
+        
+        su postgres -c "sh /var/lib/postgresql/init.sh"
+        
+        echo "========"
+        
+        #
