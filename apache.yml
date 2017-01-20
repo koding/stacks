@@ -1,0 +1,58 @@
+# This stack script installs Apache
+# The current version is 2.4.25, it can be changed using the variable: version
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    apache:
+      instance_type: t2.medium
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        
+        #Getting username IP, and version variables
+        export KODING_USER=${var.koding_user_username}
+        IPVAR=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+        version="2.4.25"
+        
+        #Installing base Packages
+        apt-get update -y
+        apt-get install -y libtool autoconf libapr1-dev libaprutil1-dev make 
+        
+        #Downloading and Installing Apache
+        wget http://apache.mirrors.lucidnetworks.net//httpd/httpd-$version.tar.gz
+        tar -xzf httpd-$version.tar.gz
+        cd httpd-$version
+        ./configure --prefix=/etc/apache2/
+        make
+        make install
+        
+        #Moving the home web directory to /var
+        mkdir -p /var/www/htdocs
+        sed -i 's\/etc/apache2//htdocs\/var/www/htdocs\' /etc/apache2/conf/httpd.conf
+        cp -p /etc/apache2/htdocs/index.html /var/www/htdocs/
+        
+        ##MESSAGES
+        cat - <<EOF
+        ==============================================================================
+        You can customize your Apache HTTP server by editing the configuration files
+           here /etc/apache2/conf/httpd.conf
+        The server's public IP Address is: $IPVAR
+         
+        To start apache server type: sudo /etc/apache2/bin/apachectl -k start
+        To stop apache server type: sudo /etc/apache2/bin/apachectl -k stop
+        ==============================================================================
+        EOF
+        
+        #Welcome message in user profile
+        cat - <<EOF >> /home/$KODING_USER/.bashrc
+        echo "=============================================================================="
+        echo "To start apache server type: sudo /etc/apache2/bin/apachectl -k start"
+        echo "To stop apache server type: sudo /etc/apache2/bin/apachectl -k stop"
+        echo "=============================================================================="
+        EOF
