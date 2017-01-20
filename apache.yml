@@ -38,16 +38,21 @@ resource:
         cp -p /etc/apache2/htdocs/index.html /var/www/htdocs/
         
         ##MESSAGES
+        cat - <<EOF
+        ==============================================================================
+        You can customize your Apache HTTP server by editing the configuration files
+           here /etc/apache2/conf/httpd.conf
+        The server's public IP Address is: $IPVAR
+         
+        To start apache server type: sudo /etc/apache2/bin/apachectl -k start
+        To stop apache server type: sudo /etc/apache2/bin/apachectl -k stop
+        ==============================================================================
+        EOF
+        
+        #Welcome message in user profile
+        cat - <<EOF >> /home/$KODING_USER/.bashrc
         echo "=============================================================================="
-        echo "You can customize your Apache HTTP server by editing the configuration files"
-        echo "   here /etc/apache2/conf/httpd.conf"
-        echo "The server's public IP Address is: $IPVAR"
-        echo " "
         echo "To start apache server type: sudo /etc/apache2/bin/apachectl -k start"
         echo "To stop apache server type: sudo /etc/apache2/bin/apachectl -k stop"
         echo "=============================================================================="
-        #Welcome message in user profile
-        echo "echo "'=============================================================================='"" >> /home/$KODING_USER/.bashrc
-        echo "echo "To start apache server type: sudo /etc/apache2/bin/apachectl -k start"" >> /home/$KODING_USER/.bashrc
-        echo "echo "To stop apache server type: sudo /etc/apache2/bin/apachectl -k stop"" >> /home/$KODING_USER/.bashrc
-        echo "echo "'=============================================================================='"" >> /home/$KODING_USER/.bashrc
+        EOF
