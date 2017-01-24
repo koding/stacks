@@ -1,5 +1,5 @@
 # This stack script installs wordpress and the base packages: mysql-server apache2 php5-gd libssh2-php
-# Also and creates a sample site with the DB
+# Also and creates a sample site with the DB in localhost
 provider:
   aws:
     access_key: '${var.aws_access_key}'
@@ -51,8 +51,8 @@ resource:
         ?>
         EOF
         
-        #Writing the file to create the DB
-        cat - <<EOF >> wordpress.sql
+        #Script to create the DB
+        mysql --defaults-extra-file=/etc/mysql/debian.cnf <<EOF
         CREATE DATABASE wordpress;
         GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,ALTER
         ON wordpress.*
@@ -61,11 +61,8 @@ resource:
         FLUSH PRIVILEGES;
         EOF
         
-        #Running script to create the DB
-        cat wordpress.sql | sudo mysql --defaults-extra-file=/etc/mysql/debian.cnf
-        
         #Retriving the Public IP address
-        IPVAR=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+        IPVAR=$(ec2metadata --public-ipv4)
         cp -p /etc/wordpress/config-localhost.php /etc/wordpress/config-$IPVAR.php
         
         cat - <<EOF
