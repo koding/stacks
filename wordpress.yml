@@ -1,0 +1,80 @@
+# This stack script installs wordpress and the base packages: mysql-server apache2 php5-gd libssh2-php
+# Also and creates a sample site with the DB
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    wordpress: 
+      instance_type: t2.medium
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        
+        #Packages installation
+        apt-get update -y
+        apt-get install -y wordpress mysql-server apache2 php5-gd libssh2-php
+        
+        #Writing conf file for apache2
+        cat - <<EOF >> /etc/apache2/sites-available/wordpress.conf
+                Alias /wp-site /usr/share/wordpress
+                <Directory /usr/share/wordpress>
+                    Options FollowSymLinks
+                    AllowOverride Limit Options FileInfo
+                    DirectoryIndex index.php
+                    Order allow,deny
+                    Allow from all
+                </Directory>
+                <Directory /usr/share/wordpress/wp-content>
+                    Options FollowSymLinks
+                    Order allow,deny
+                    Allow from all
+                </Directory>
+        EOF
+        
+        #Enabling the new site and Restarting the apache service
+        a2ensite wordpress
+        service apache2 restart
+        
+        #Writing the file to connect WP to the DB and Password definition
+        cat - <<EOF >> /etc/wordpress/config-localhost.php
+        <?php
+        define('DB_NAME', 'wordpress');
+        define('DB_USER', 'wordpress');
+        define('DB_PASSWORD', 'passwone');
+        define('DB_HOST', 'localhost');
+        define('WP_CONTENT_DIR', '/usr/share/wordpress/wp-content');
+        ?>
+        EOF
+        
+        #Writing the file to create the DB
+        cat - <<EOF >> wordpress.sql
+        CREATE DATABASE wordpress;
+        GRANT SELECT,INSERT,UPDATE,DELETE,CREATE,DROP,ALTER
+        ON wordpress.*
+        TO wordpress@localhost
+        IDENTIFIED BY 'passwone';
+        FLUSH PRIVILEGES;
+        EOF
+        
+        #Running script to create the DB
+        cat wordpress.sql | sudo mysql --defaults-extra-file=/etc/mysql/debian.cnf
+        
+        #Retriving the Public IP address
+        IPVAR=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
+        cp -p /etc/wordpress/config-localhost.php /etc/wordpress/config-$IPVAR.php
+        
+        cat - <<EOF
+        ========================================================"
+         Access the configuration console here:"
+         http://$IPVAR/wp-site/wp-admin/install.php"
+        ========================================================"
+        EOF
+        
+  aws_eip:
+    wp-eip:
+      instance: "${aws_instance.wordpress.id}"
