@@ -1,0 +1,52 @@
+# This stack script installs citusdata in as single node cluster 
+# 3 instances will be created: master, worker1 and worker2
+
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    citus-single:
+      instance_type: t2.medium
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        export DEBIAN_FRONTEND=noninteractive
+        #Adding new source, Updating repository and Installing Packages
+        curl https://install.citusdata.com/community/deb.sh | bash
+        apt-get update -y
+        apt-get -y install postgresql-9.5-citus
+        
+        #Creating initial script to setup enviroment
+        #Include path to postgres binaries
+        cat - <<EOF >> /var/lib/postgresql/init.sh
+        export PATH=\$PATH:/usr/lib/postgresql/9.5/bin
+        echo "export PATH=\$PATH:/usr/lib/postgresql/9.5/bin" >> /var/lib/postgresql/.profile
+        cd ~
+        mkdir -p citus/master citus/worker1 citus/worker2
+        
+        # create three normal postgres instances
+        initdb -D citus/master
+        initdb -D citus/worker1
+        initdb -D citus/worker2
+        sleep 3
+        echo "localhost 9701" >> citus/master/pg_worker_list.conf
+        echo "localhost 9702" >> citus/master/pg_worker_list.conf
+        
+        echo "shared_preload_libraries = 'citus'" >> citus/master/postgresql.conf
+        echo "shared_preload_libraries = 'citus'" >> citus/worker1/postgresql.conf
+        echo "shared_preload_libraries = 'citus'" >> citus/worker2/postgresql.conf
+        
+        pg_ctl -D citus/master -o "-p 9700" -l master_logfile start
+        pg_ctl -D citus/worker1 -o "-p 9701" -l worker1_logfile start
+        pg_ctl -D citus/worker2 -o "-p 9702" -l worker2_logfile start
+        sleep 3
+        psql -p 9700 -c "CREATE EXTENSION citus;"
+        psql -p 9701 -c "CREATE EXTENSION citus;"
+        psql -p 9702 -c "CREATE EXTENSION citus;"
+        EOF
+        
+        #running initial script
+        su postgres -c "sh /var/lib/postgresql/init.sh"
