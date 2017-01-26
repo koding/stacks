@@ -13,6 +13,7 @@ resource:
       tags:
         Name: '${var.koding_user_username}-${var.koding_group_slug}'
       user_data: |-
+        #!/bin/bash
         set -e
         export DEBIAN_FRONTEND=noninteractive
         #Adding new source, Updating repository and Installing Packages
