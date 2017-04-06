@@ -1,0 +1,26 @@
+# Here is your stack preview
+# You can make advanced changes like modifying your VM,
+# installing packages, and running shell commands.
+
+provider:
+  aws:
+    access_key: '${var.aws_access_key}'
+    secret_key: '${var.aws_secret_key}'
+resource:
+  aws_instance:
+    rethinkdb:
+      instance_type: t2.nano
+      ami: ''
+      tags:
+        Name: '${var.koding_user_username}-${var.koding_group_slug}'
+      user_data: |-
+        set -e
+        export DEBIAN_FRONTEND=noninteractive
+        #Adding new sources
+        CODENAME=$(lsb_release -cs)
+        echo "deb http://download.rethinkdb.com/apt $CODENAME main" | sudo tee /etc/apt/sources.list.d/rethinkdb.list
+        wget -qO- https://download.rethinkdb.com/apt/pubkey.gpg | sudo apt-key add -
+        #Updating packages
+        apt-get update -y
+        #Installing RethinkDB
+        apt-get -y install rethinkdb
