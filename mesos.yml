@@ -22,21 +22,14 @@ resource:
         apt-key adv --keyserver keyserver.ubuntu.com --recv E56151BF
         DISTRO=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
         CODENAME=$(lsb_release -cs)
-        echo "deb http://repos.mesosphere.io/$DISTRO $CODENAME main" | sudo tee 	/etc/apt/sources.list.d/mesosphere.list
+        echo "deb http://repos.mesosphere.io/$DISTRO $CODENAME main" | tee /etc/apt/sources.list.d/mesosphere.list
         add-apt-repository ppa:openjdk-r/ppa
         
         #Updating packages
         apt-get update -y
-        sleep 10
         apt-get install -y openjdk-8-jdk
-        sleep 10
-        update-alternatives --config java
-        sleep 10
-        update-alternatives --config javac
-        sleep 10
         #installing Mesosphere
         sudo apt-get install -y mesosphere
-        sleep 10
         #Getting the IP add
         IPVAR1=`ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'`
         
@@ -48,8 +41,6 @@ resource:
         echo "server.1=$IPVAR1:2888:3888" > /etc/zookeeper/conf/zoo.cfg
         echo "dataDir=/var/zookeeper" >> /etc/zookeeper/conf/zoo.cfg
         echo "clientPort=2181" >> /etc/zookeeper/conf/zoo.cfg
-
-
         #Quorum Value Defaul=1
         #echo "1" > /etc/mesos-master/quorum
         echo $IPVAR1 > /etc/mesos-master/ip
@@ -61,21 +52,14 @@ resource:
         echo 'docker,mesos' > /etc/mesos-slave/containerizers
         echo '5mins' > /etc/mesos-slave/executor_registration_timeout
         stop mesos-slave
-        sleep 10
         echo "manual" | sudo tee /etc/init/mesos-slave.override
         stop zookeeper
-        sleep 10
+        sleep 5
         start zookeeper
-        sleep 10
         start mesos-master
-        sleep 10
         start marathon
         
         apt-get install -y nginx
-        rm /etc/nginx/sites-enabled/default
-        echo "server { listen 80; server_name ${var.koding_user_username}.mesosphere.live; location / { proxy_pass http://$IPVAR1:8080; }}" >/etc/nginx/sites-enabled/marathon
-        echo "server { listen 80; server_name ${var.koding_user_username}-mesos.mesosphere.live; location / { proxy_pass http://$IPVAR1:5050; }}" >/etc/nginx/sites-enabled/mesos
-        service nginx restart
         
         PUBLIC_IP=$(curl http://169.254.169.254/latest/meta-data/public-ipv4)
         
@@ -109,14 +93,21 @@ resource:
         EOT
         mesos-dns -config=/etc/mesos-dns-config.json & 
         sed -i "s/nameserver 10.0.0.2/nameserver $IPVAR1\nnameserver 10.0.0.2/" /etc/resolv.conf
-        echo "You can access the Marathon Web UI at http://${var.koding_user_username}.mesosphere.live"
-        echo ""
-        echo "You can access the Mesos Web UI at http://${var.koding_user_username}-mesos.mesosphere.live"
-        
-        
-    slave_1:
+        echo " "
+        echo "=========================================================================="
+        echo "You can manage and monitor Mesosphere with the web UI on port 5050"
+        echo "Make sure that port 5050 is open in your firewall or security group."
+        echo "You can access the Web UI at http://$PUBLIC_IP:5050"
+        echo " "
+        echo "You can manage and Marathon with the web UI on port 8080"
+        echo "Make sure that port 8080 is open in your firewall or security group."
+        echo "You can access the Web UI at http://$PUBLIC_IP:8080"
+        echo "=========================================================================="
+        echo " "
+    slave:
       instance_type: m4.2xlarge
       ami: ''
+      count: 3
       root_block_device:
         volume_size: 50
       tags:
@@ -127,30 +118,23 @@ resource:
         apt-key adv --keyserver keyserver.ubuntu.com --recv E56151BF
         DISTRO=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
         CODENAME=$(lsb_release -cs)
-        echo "deb http://repos.mesosphere.io/$DISTRO $CODENAME main" | sudo tee 	/etc/apt/sources.list.d/mesosphere.list
+        echo "deb http://repos.mesosphere.io/$DISTRO $CODENAME main" | sudo tee /etc/apt/sources.list.d/mesosphere.list
         add-apt-repository ppa:openjdk-r/ppa
-        
+        apt-get install apt-transport-https ca-certificates
+        apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
+        echo 'deb https://apt.dockerproject.org/repo ubuntu-trusty main' > /etc/apt/sources.list.d/docker.list
         #Updating packages
         apt-get update -y
-        sleep 10
         apt-get install -y openjdk-8-jdk
-        sleep 10
-        update-alternatives --config java
-        sleep 10
-        update-alternatives --config javac
-        sleep 10
         #Installing mesos
         sudo apt-get install -y mesos
-        sleep 10
         #Getting the IP add
         IPVAR1=${aws_instance.master.private_ip}
         IPVAR=`ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'`
         
         stop zookeeper
-        sleep 10
         echo manual | sudo tee /etc/init/zookeeper.override
         stop mesos-master
-        sleep 10
         manual | sudo tee /etc/init/mesos-master.override
         
         #modifying the Zookepper mesos file
@@ -166,145 +150,10 @@ resource:
         echo '5mins' > /etc/mesos-slave/executor_registration_timeout
         
         #Install Docker engine
-        sudo apt-get install apt-transport-https ca-certificates
-        sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
-        echo 'deb https://apt.dockerproject.org/repo ubuntu-trusty main' > /etc/apt/sources.list.d/docker.list
-        sudo apt-get update
-        sudo apt-get purge -y lxc-docker
-        sudo apt-get install -y linux-image-extra-$(uname -r)
-        sudo apt-get install -y --force-yes docker-engine
+        apt-get purge -y lxc-docker
+        apt-get install -y --force-yes linux-image-extra-$(uname -r) docker-engine
         
         sed -i "s/nameserver 10.0.0.2/nameserver ${aws_instance.master.private_ip}\nnameserver 10.0.0.2/" /etc/resolv.conf
         
         start mesos-slave
-        sleep 10
         
-    slave_2:
-      instance_type: m4.2xlarge
-      ami: ''
-      root_block_device:
-        volume_size: 50
-      tags:
-        Name: '${var.koding_user_username}-${var.koding_group_slug}'
-      user_data: |-
-        export DEBIAN_FRONTEND=noninteractive
-        #setting the new source
-        apt-key adv --keyserver keyserver.ubuntu.com --recv E56151BF
-        DISTRO=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
-        CODENAME=$(lsb_release -cs)
-        echo "deb http://repos.mesosphere.io/$DISTRO $CODENAME main" | sudo tee 	/etc/apt/sources.list.d/mesosphere.list
-        add-apt-repository ppa:openjdk-r/ppa
-        
-        #Updating packages
-        apt-get update -y
-        sleep 10
-        apt-get install -y openjdk-8-jdk
-        sleep 10
-        update-alternatives --config java
-        sleep 10
-        update-alternatives --config javac
-        sleep 10
-        #Installing mesos
-        sudo apt-get install -y mesos
-        sleep 10
-        #Getting the IP add
-        IPVAR1=${aws_instance.master.private_ip}
-        IPVAR=`ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'`
-        
-        stop zookeeper
-        sleep 10
-        echo manual | sudo tee /etc/init/zookeeper.override
-        stop mesos-master
-        sleep 10
-        manual | sudo tee /etc/init/mesos-master.override
-        
-        #modifying the Zookepper mesos file
-        echo "zk://$IPVAR1:2181/mesos" > /etc/mesos/zk
-        
-        #Add additional ports
-        echo "ports:[8089-8090, 6378-6379, 15671-15672, 5671-5672, 25671-25672, 5431-5432, 27016-27017, 31000-32000]" > /etc/mesos-slave/resources
-        
-        echo $IPVAR > /etc/mesos-slave/ip
-        echo $IPVAR > /etc/mesos-slave/hostname
-        
-        echo 'docker,mesos' > /etc/mesos-slave/containerizers
-        echo '5mins' > /etc/mesos-slave/executor_registration_timeout
-        
-        #Install Docker engine
-        sudo apt-get install apt-transport-https ca-certificates
-        sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
-        echo 'deb https://apt.dockerproject.org/repo ubuntu-trusty main' > /etc/apt/sources.list.d/docker.list
-        sudo apt-get update
-        sudo apt-get purge -y lxc-docker
-        sudo apt-get install -y linux-image-extra-$(uname -r)
-        sudo apt-get install -y --force-yes docker-engine
-        
-        sed -i "s/nameserver 10.0.0.2/nameserver ${aws_instance.master.private_ip}\nnameserver 10.0.0.2/" /etc/resolv.conf
-        
-        start mesos-slave
-        sleep 10
-        
-    slave_3:
-      instance_type: m4.2xlarge
-      ami: ''
-      root_block_device:
-        volume_size: 50
-      tags:
-        Name: '${var.koding_user_username}-${var.koding_group_slug}'
-      user_data: |-
-        export DEBIAN_FRONTEND=noninteractive
-        #setting the new source
-        apt-key adv --keyserver keyserver.ubuntu.com --recv E56151BF
-        DISTRO=$(lsb_release -is | tr '[:upper:]' '[:lower:]')
-        CODENAME=$(lsb_release -cs)
-        echo "deb http://repos.mesosphere.io/$DISTRO $CODENAME main" | sudo tee 	/etc/apt/sources.list.d/mesosphere.list
-        add-apt-repository ppa:openjdk-r/ppa
-        
-        #Updating packages
-        apt-get update -y
-        sleep 10
-        apt-get install -y openjdk-8-jdk
-        sleep 10
-        update-alternatives --config java
-        sleep 10
-        update-alternatives --config javac
-        sleep 10
-        #Installing mesos
-        sudo apt-get install -y mesos
-        sleep 10
-        #Getting the IP add
-        IPVAR1=${aws_instance.master.private_ip}
-        IPVAR=`ip addr | grep -Po '(?!(inet 127.\d.\d.1))(inet \K(\d{1,3}\.){3}\d{1,3})'`
-        
-        #modifying the Zookepper mesos file
-        echo "zk://$IPVAR1:2181/mesos" > /etc/mesos/zk
-        
-        #Add additional ports
-        echo "ports:[8089-8090, 6378-6379, 15671-15672, 5671-5672, 25671-25672, 5431-5432, 27016-27017, 31000-32000]" > /etc/mesos-slave/resources
-        
-        stop zookeeper
-        sleep 10
-        echo manual | sudo tee /etc/init/zookeeper.override
-        stop mesos-master
-        sleep 10
-        manual | sudo tee /etc/init/mesos-master.override
-        
-        echo $IPVAR > /etc/mesos-slave/ip
-        echo $IPVAR > /etc/mesos-slave/hostname
-        
-        echo 'docker,mesos' > /etc/mesos-slave/containerizers
-        echo '5mins' > /etc/mesos-slave/executor_registration_timeout
-        
-        #Install Docker engine
-        sudo apt-get install apt-transport-https ca-certificates
-        sudo apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D
-        echo 'deb https://apt.dockerproject.org/repo ubuntu-trusty main' > /etc/apt/sources.list.d/docker.list
-        sudo apt-get update
-        sudo apt-get purge -y lxc-docker
-        sudo apt-get install -y linux-image-extra-$(uname -r)
-        sudo apt-get install -y --force-yes docker-engine
-        
-        sed -i "s/nameserver 10.0.0.2/nameserver ${aws_instance.master.private_ip}\nnameserver 10.0.0.2/" /etc/resolv.conf
-        
-        start mesos-slave
-        sleep 10
