@@ -1,6 +1,4 @@
-# Here is your stack preview
-# You can make advanced changes like modifying your VM,
-# installing packages, and running shell commands.
+# MemSQL AWS stack
 
 provider:
   aws:
@@ -8,17 +6,32 @@ provider:
     secret_key: '${var.aws_secret_key}'
 resource:
   aws_instance:
-    memsql_1:
+    memsql:
       instance_type: m4.2xlarge
       ami: ''
       tags:
         Name: '${var.koding_user_username}-${var.koding_group_slug}'
       user_data: |-
-        # :
+        #!/bin/bash
+        
+        set -euo pipefail
+        set -x
+
         export DEBIAN_FRONTEND=noninteractive
-        apt-get update -y
-        #Single memsql installation
-        wget http://download.memsql.com/memsql-ops-5.1.0/memsql-ops-5.1.0.tar.gz
-        tar -xzvf memsql-ops-5.1.0.tar.gz
-        cd memsql-ops-5.1.0
-        yes| ./install.sh
+        
+        apt-get update
+        apt-get install -y wget --no-install-recommends
+
+        MEMSQL_VERSION="5.7.1"
+        MEMSQL_NAME="memsql-ops-$MEMSQL_VERSION"
+        MEMSQL_TARBALL="$MEMSQL_NAME.tar.gz"
+
+        wget -qO- \
+          "http://download.memsql.com/$MEMSQL_NAME/$MEMSQL_TARBALL" | tar -xvz
+        
+        pushd $MEMSQL_NAME
+        $PWD/install.sh
+        popd
+
+        rm $MEMSQL_TARBALL
+        rm -rf $MEMSQL_NAME
